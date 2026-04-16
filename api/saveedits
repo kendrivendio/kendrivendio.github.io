@@ -6,13 +6,24 @@ export default async function handler(req, res) {
   }
 
   const token = process.env.GITHUB_TOKEN;
-  const repo  = process.env.GITHUB_REPO; // e.g. "kendrivendio/kendrivendio.github.io"
+  const repo  = process.env.GITHUB_REPO;
 
   if (!token || !repo) {
     return res.status(500).json({ ok: false, error: 'Missing env vars' });
   }
 
-  const edits   = req.body;
+  let edits;
+  try {
+    const raw = await new Promise((resolve, reject) => {
+      let data = '';
+      req.on('data', chunk => data += chunk);
+      req.on('end', () => resolve(data));
+      req.on('error', reject);
+    });
+    edits = JSON.parse(raw);
+  } catch {
+    return res.status(400).json({ ok: false, error: 'Invalid request body' });
+  }
   const path    = 'edits.json';
   const content = Buffer.from(JSON.stringify(edits, null, 2)).toString('base64');
   const apiPath = `/repos/${repo}/contents/${path}`;
