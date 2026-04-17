@@ -1318,7 +1318,8 @@
           body: JSON.stringify(pendingEdits),
         });
         const data = await res.json();
-        if (!data.ok) console.error('Save failed:', data.error);
+        if (!data.ok) alert('Save failed: ' + data.error);
+        else alert('Saved!');
       } catch(e) { console.error('Save error:', e); }
     }
 
@@ -1371,6 +1372,10 @@
         <button class="edit-save-btn" onclick="saveEdit()">Save</button>
         <button class="edit-cancel-btn" onclick="closeEditPanel()">Cancel</button>
       </div>
+    </div>
+  </div>
+</body>
+</html>
     </div>
   </div>
 </body>
