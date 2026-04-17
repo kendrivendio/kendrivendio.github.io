@@ -6,8 +6,12 @@ export default async function handler(req, res) {
   const token = process.env.GITHUB_TOKEN;
   const repo  = process.env.GITHUB_REPO;
 
+  console.log('saveedits called');
+  console.log('token present:', !!token);
+  console.log('repo:', repo);
+
   if (!token || !repo) {
-    return res.status(500).json({ ok: false, error: 'Missing env vars' });
+    return res.status(500).json({ ok: false, error: 'Missing env vars — token:' + !!token + ' repo:' + repo });
   }
 
   // Parse body
@@ -19,6 +23,7 @@ export default async function handler(req, res) {
       req.on('end', () => resolve(data));
       req.on('error', reject);
     });
+    console.log('raw body:', raw.slice(0, 200));
     edits = JSON.parse(raw);
   } catch (e) {
     return res.status(400).json({ ok: false, error: 'Invalid request body: ' + e.message });
@@ -39,9 +44,11 @@ export default async function handler(req, res) {
   let sha;
   try {
     const getRes = await fetch(apiBase, { headers });
+    console.log('GET status:', getRes.status);
     if (getRes.ok) {
       const getData = await getRes.json();
       sha = getData.sha;
+      console.log('got SHA:', sha);
     }
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'GitHub GET failed: ' + e.message });
@@ -60,6 +67,7 @@ export default async function handler(req, res) {
     });
 
     const putData = await putRes.json();
+    console.log('PUT status:', putRes.status, 'message:', putData.message);
     if (putRes.ok) {
       return res.status(200).json({ ok: true });
     } else {
