@@ -15,8 +15,8 @@
       --border: #2a2520;
       --text: #e8e0d4;
       --muted: #7a7068;
-      --accent: #c9a96e;
-      --accent-dim: #8a6f3f;
+      --accent: #c0392b;
+      --accent-dim: #7b241c;
       --red: #c96e6e;
     }
 
@@ -273,27 +273,39 @@
       background: var(--surface);
       cursor: none;
     }
+    body:not(.edit-mode) .gallery-item:has(.gallery-placeholder) { display: none; }
     .gallery-item:nth-child(1) { grid-column: span 2; aspect-ratio: 16/9; }
+    body:not(.edit-mode) .gallery-item:has(.gallery-placeholder) { display: none; }
     .gallery-item:nth-child(2) { aspect-ratio: 3/4; }
+    body:not(.edit-mode) .gallery-item:has(.gallery-placeholder) { display: none; }
     .gallery-item:nth-child(3) { aspect-ratio: 1; }
+    body:not(.edit-mode) .gallery-item:has(.gallery-placeholder) { display: none; }
     .gallery-item:nth-child(4) { aspect-ratio: 1; }
+    body:not(.edit-mode) .gallery-item:has(.gallery-placeholder) { display: none; }
     .gallery-item:nth-child(5) { grid-column: span 2; aspect-ratio: 16/9; }
+    body:not(.edit-mode) .gallery-item:has(.gallery-placeholder) { display: none; }
     .gallery-item:nth-child(6) { aspect-ratio: 4/5; }
+    body:not(.edit-mode) .gallery-item:has(.gallery-placeholder) { display: none; }
     .gallery-item:nth-child(7) { aspect-ratio: 4/5; }
+    body:not(.edit-mode) .gallery-item:has(.gallery-placeholder) { display: none; }
     .gallery-item:nth-child(8) { aspect-ratio: 4/5; }
 
     .gallery-placeholder {
       width: 100%;
       height: 100%;
-      display: flex;
+      min-height: 180px;
+      display: none;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 12px;
+      gap: 10px;
       color: var(--muted);
-      background: var(--surface);
-      transition: background 0.3s;
-      min-height: 200px;
+      border: 1px dashed var(--border);
+      transition: border-color 0.2s, background 0.2s;
+      cursor: pointer;
+    }
+    body.edit-mode .gallery-placeholder {
+      display: flex;
     }
     .gallery-placeholder .icon {
       font-size: 28px;
@@ -369,7 +381,7 @@
       width: 100%;
       height: 100%;
       min-height: 180px;
-      display: flex;
+      display: none;
       flex-direction: column;
       align-items: center;
       justify-content: center;
@@ -378,6 +390,9 @@
       border: 1px dashed var(--border);
       transition: border-color 0.2s, background 0.2s;
       cursor: pointer;
+    }
+    body.edit-mode .gallery-placeholder {
+      display: flex;
     }
     .gallery-placeholder:hover {
       border-color: var(--accent-dim);
@@ -915,6 +930,21 @@
       z-index: 10;
     }
     body.edit-mode .tile-edit-btn { display: block; }
+    .footer-edit {
+      position: absolute;
+      bottom: 48px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    .footer-edit a {
+      color: transparent;
+      font-size: 10px;
+      user-select: none;
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+    .footer-edit a:hover { color: var(--border); }
+    footer { position: relative; }
   </style>
 </head>
 <body>
@@ -1133,6 +1163,7 @@
       <a href="https://www.tiktok.com/@kendrivendio" target="_blank">TikTok</a><br>
       @kendrivendio
     </div>
+    <div class="footer-edit"><a href="#" onclick="checkUploadPassword(); return false;">✦</a></div>
   </footer>
 
   <!-- Lightbox -->
@@ -1168,7 +1199,7 @@
     }, { threshold: 0.1 });
     document.querySelectorAll('.reveal').forEach(r => revealObserver.observe(r));
 
-    // ── Load saved edits from edits.json on GitHub Pages / Netlify ──
+    // ── Load saved edits on page load ──
     async function loadEdits() {
       try {
         const res = await fetch('/edits.json?cb=' + Date.now());
@@ -1177,7 +1208,7 @@
         Object.entries(edits).forEach(([id, data]) => {
           applyEdit(id, data.caption, data.platform, data.link, false);
         });
-      } catch(e) { /* no edits file yet, that's fine */ }
+      } catch(e) {}
     }
     loadEdits();
 
@@ -1307,8 +1338,21 @@
       closeEditPanel();
     }
 
-    // ── Persist edits via Netlify function → GitHub API ──
+    // ── Persist edits via Vercel function → GitHub API ──
     var pendingEdits = {};
+
+    // Pre-load any existing edits into pendingEdits so we don't overwrite them
+    async function loadEditsIntoMemory() {
+      try {
+        const res = await fetch('/edits.json?cb=' + Date.now());
+        if (res.ok) {
+          const data = await res.json();
+          Object.assign(pendingEdits, data);
+        }
+      } catch(e) {}
+    }
+    loadEditsIntoMemory();
+
     async function saveEdits(id, caption, platform, link) {
       pendingEdits[id] = { caption, platform, link };
       try {
@@ -1317,10 +1361,17 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(pendingEdits),
         });
-        const data = await res.json();
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch(e) { alert('Bad response: ' + text.slice(0,200)); return; }
         if (!data.ok) alert('Save failed: ' + data.error);
-        else alert('Saved!');
-      } catch(e) { console.error('Save error:', e); }
+        else {
+          const banner = document.getElementById('edit-banner');
+          const msg = banner.querySelector('.save-msg');
+          msg.textContent = '✓ Saved';
+          setTimeout(() => msg.textContent = '', 2000);
+        }
+      } catch(e) { alert('Save error: ' + e.message); }
     }
 
     // ── Form ──
@@ -1342,7 +1393,7 @@
 
   <!-- Edit mode banner -->
   <div class="edit-mode-banner" id="edit-banner">
-    ✦ Edit Mode Active
+    ✦ Edit Mode &nbsp;<span class="save-msg" style="font-style:italic;font-weight:normal;letter-spacing:0;"></span>
     <button onclick="exitEditMode()">Done</button>
   </div>
 
@@ -1372,10 +1423,6 @@
         <button class="edit-save-btn" onclick="saveEdit()">Save</button>
         <button class="edit-cancel-btn" onclick="closeEditPanel()">Cancel</button>
       </div>
-    </div>
-  </div>
-</body>
-</html>
     </div>
   </div>
 </body>
